@@ -13,6 +13,8 @@
 
 #define BUFSIZE 64
 
+extern int syncseqfirst;
+
 void shell_rpel(int socket)
 {
     char *line;
@@ -43,15 +45,16 @@ void shell_rpel(int socket)
             continue;
         }
         status = exec_command(socket, args, ocwd, cwd);
-        // TODO: entender e usar errno
         if (status) {
-            if (status == -5)
+            if (status == -5) {
                 fprintf(stderr, "ERRO! Nao foi possivel mudar de diretorio!\n");
-            else if (errno == -1)
+            } else if (errno == -1) {
+                // destroy_message(send_message(socket, FIXSEQ, NULL, 0));
+                syncseqfirst = 1;
                 fprintf(stderr, "ERRO! Timeout de 3 segundos excedido!\n");
-            else
+            } else {
                 fprintf(stderr, ">>> err? \"%s\"\n", strerror(errno));
-            //print_error(...);
+            }
         }
         free(line);
         free(args[0]);

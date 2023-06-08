@@ -1,19 +1,19 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-// #include <limits.h>
 #include <string.h>
-// #include <dirent.h>
+#include <openssl/md5.h>
 #include <errno.h>
 #include "server.h"
 #include "rawsocket.h"
 #include "protocol.h"
 #include "utils.h"
 
-#include <openssl/md5.h>
-
 #define BUFSIZE 64
 
+extern unsigned int seq;
+extern unsigned int last_seq;
+extern int syncseqfirst;
 
 void server_loop(int socket)
 {
@@ -32,7 +32,6 @@ void server_loop(int socket)
         //fprintf(stderr, "NO PWD? %s\n", cwd);
         //exit(EXIT_FAILURE);
     //}
-
     while (!done) {
         received = wait_valid_message(socket);
         // deu timeout? espera de novo kkkkkkkkk
@@ -48,6 +47,8 @@ void server_loop(int socket)
                     last_sent = send_message(socket, NACK, NULL, 0);
                     break;
                 case -1:
+                    // destroy_message(send_message(socket, FIXSEQ, NULL, 0));
+                    syncseqfirst = 1;
                     fprintf(stderr, "[ERROR] TIMEOUT DE 3 SEGUNDOS EXCEDIDO!\n");
                     break;
                 default:

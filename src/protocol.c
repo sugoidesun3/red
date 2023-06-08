@@ -9,6 +9,7 @@
 
 unsigned int seq = 0;
 unsigned int last_seq = MAXSEQ;
+extern int syncseqfirst;
 
 size_t tmp = 0;
 
@@ -113,6 +114,8 @@ int receive_batch(int socket, int send_ok, char *regex)
 {
     int res;
     msg_t *response = NULL;
+    char fname[MAX_DATA_BYTES + 1];
+    fname[MAX_DATA_BYTES] = '\0';
     // caso precise mandar ok isso eh recebido como parametro
     if (send_ok) {
         response = send_and_wait(socket, OK, NULL, 0, -1);
@@ -134,7 +137,9 @@ int receive_batch(int socket, int send_ok, char *regex)
     // caso contrario response ja vem com DATA
     while (response->type != END_BATCH) {
         if (response->type == RECV_NAME || response->type == BACKUP_FILE) {
-            if ((res = receive_file(socket, 1, (char *)response->data)))
+            memcpy(fname, response->data, response->size);
+            fname[response->size] = '\0';
+            if ((res = receive_file(socket, 1, fname)))
                 return res;
             destroy_message(response);
             response = send_and_wait(socket, OK, NULL, 0, -1);

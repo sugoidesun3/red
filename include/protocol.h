@@ -42,7 +42,7 @@ typedef struct __attribute__((__packed__)){
 #define DATA         0x8
 #define END_FILE     0x9
 #define END_BATCH    0xa
-// ...               0xb
+#define FIXSEQ       0xb
 #define ERR          0xc
 #define OK           0xd
 #define ACK          0xe

@@ -13,6 +13,7 @@
 
 extern unsigned int seq;
 extern unsigned int last_seq;
+int syncseqfirst = 1;
 
 #define TIMEOUT_SECONDS 3
 
@@ -215,6 +216,12 @@ msg_t *send_message(int socket, int type, void *data, unsigned int size)
     // unsigned char msgbuf[MAX_MESSAGE_BYTES];
     unsigned char *msgbuf;
     unsigned int bytecount, sent;
+    if (syncseqfirst) {
+        syncseqfirst = 0;
+        syncseqfirst = syncseqs(socket);
+        if (syncseqfirst != 0)
+            return NULL;
+    }
     msg_t *msg = create_message(type, data, size);
     if (!msg) {
         fprintf(stderr, "1???\n");
@@ -282,31 +289,48 @@ msg_t *wait_valid_message(int socket)
         if (!msg)
             return NULL;
         // tipo errado (nao definido) = deu caca
-        if (msg->type == 0xb) {
-#ifdef DEBUG
-            printf("> [ERR] INVALID MESSAGE! INVALID TYPE!\n");
-#endif /* ifdef DEBUG */
-            msg = destroy_message(msg);
         // paridade errada = deu caca
-        } else if (!validate_parity(msg)) {
+        if (!validate_parity(msg)) {
 #ifdef DEBUG
             printf("> [ERR] INVALID MESSAGE! WRONG PARITY!\n");
 #endif /* ifdef DEBUG */
             msg = destroy_message(msg);
-        // TODO: sequencia errada = deu caca
+            DECSEQ(seq);
+            msg = send_message(socket, NACK, NULL, 0);
+            msg = destroy_message(msg);
+        } else if (msg->type == FIXSEQ) {
+            last_seq = msg->seq;
+            msg = destroy_message(msg);
+            syncseqfirst = 0;
+            msg = send_message(socket, FIXSEQ, NULL, 0);
+            msg = destroy_message(msg);
         } else if (NEXTSEQ(last_seq) != msg->seq) {
 #ifdef DEBUG
             printf("> [ERR] INVALID MESSAGE! WRONG SEQUENCE! (%d instead of %d)\n", msg->seq, NEXTSEQ(last_seq));
-            //getchar();
 #endif /* ifdef DEBUG */
             msg = destroy_message(msg);
-        }
-        if (!msg) {
-            DECSEQ(seq);
-            send_message(socket, NACK, NULL, 0);
         } else {
             last_seq = msg->seq;
         }
     }
     return msg;
+}
+
+int syncseqs(int socket)
+{
+    msg_t *msg = send_message(socket, FIXSEQ, NULL, 0);
+    if (!msg)
+        return errno;
+    destroy_message(msg);
+    msg = wait_message(socket);
+    if (!msg)
+        return errno;
+    if (msg->type == FIXSEQ) {
+        last_seq = msg->seq;
+    } else {
+        destroy_message(msg);
+        return -3;
+    }
+    destroy_message(msg);
+    return 0;
 }

@@ -37,4 +37,6 @@ int validate_parity(msg_t *msg);
 
 void print_message(msg_t *msg);
 
+int syncseqs(int socket);
+
 #endif /* __REDES_T1_RAWSOCKET_H */
